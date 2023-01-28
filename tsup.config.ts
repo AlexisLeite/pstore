@@ -13,6 +13,8 @@ const config: Options = {
   sourcemap: true,
   splitting: true,
   target: 'es2020',
+  treeshake: true,
+  tsconfig: './tsconfig.json',
   watch: env === 'development',
 };
 
