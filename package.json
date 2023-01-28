@@ -4,6 +4,9 @@
   "description": "",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  
   "scripts": {
     "build": "tsup src/index.ts",
     "start": "npm run build -- --watch"
