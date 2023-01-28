@@ -1,6 +1,6 @@
 {
   "name": "@alexisleite/pstore",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -10,7 +10,6 @@
     "import": "./dist/index.js",
     "require": "./dist/index.cjs"
   },
-
   "scripts": {
     "build": "tsup src/index.ts",
     "start": "npm run build -- --watch"
