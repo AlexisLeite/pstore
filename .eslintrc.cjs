@@ -24,7 +24,6 @@ module.exports = {
       },
       rules: {
         indent: ["error", 2],
-        "linebreak-style": ["error", "unix"],
         quotes: ["error", "single"],
         semi: ["error", "always"],
         "react-hooks/rules-of-hooks": "error",
@@ -40,6 +39,7 @@ module.exports = {
         "react/react-in-jsx-scope": "off",
         "class-methods-use-this": "off",
         "@typescript-eslint/non-nullable-type-assertion-style": "off",
+        "linebreak-style": ["error", "windows"],
         "no-param-reassign": [
           "error",
           {
@@ -73,4 +73,5 @@ module.exports = {
       version: "detect",
     },
   },
+  ignorePatterns: ["dist"],
 };
