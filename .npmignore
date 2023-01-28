@@ -4,4 +4,4 @@ tsup.config.ts
 specs
 .eslintrc.cjs
 .vscode
-.tsconfig.json
+tsconfig.json
