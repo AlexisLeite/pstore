@@ -2,4 +2,4 @@ src
 tsup.config.ts
 .gitignore
 specs
-.eslintrc.js
+.eslintrc.cjs
