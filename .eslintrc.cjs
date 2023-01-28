@@ -55,6 +55,7 @@ module.exports = {
         "operator-linebreak": "off",
         "@typescript-eslint/no-empty-function": "off",
         "prettier/prettier": "off",
+        "no-multiple-empty-lines": "off",
       },
     },
   ],
