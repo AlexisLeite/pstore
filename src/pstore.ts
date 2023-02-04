@@ -1,5 +1,8 @@
+import Logger from '@aluy/logger';
 import cloneDeep from 'lodash.clonedeep';
 import { TId, TMap, TSuscriptor } from './types';
+
+const loggert = new Logger();
 
 export default class PStore<PropsType extends TMap = TMap> {
   #fields: TMap<PropsType> = {};
@@ -18,6 +21,8 @@ export default class PStore<PropsType extends TMap = TMap> {
 
   update(fieldId: TId, props: Partial<PropsType>) {
     this.#fields[fieldId] = { ...this.#fields[fieldId], ...props };
-    this.#suscriptors[fieldId].forEach((current) => current(this.#fields[fieldId]));
+    this.#suscriptors[fieldId].forEach((current) =>
+      current(this.#fields[fieldId]),
+    );
   }
 }
