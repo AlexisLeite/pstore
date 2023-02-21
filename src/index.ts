@@ -1,7 +1,7 @@
-import PStore from './pstore';
-import registerStore from './registerStore';
+import MStore from './mstore';
+import SStore from './sstore';
 import useSelector from './useSelector';
 
 export * from './types';
-export { PStore, registerStore, useSelector };
-
+export { SStore, MStore, useSelector };
+export default MStore;

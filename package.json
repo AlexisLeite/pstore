@@ -1,6 +1,6 @@
 {
-  "name": "@aluy/pstore",
-  "version": "1.0.6",
+  "name": "@aluy/mstore",
+  "version": "1.0.0",
   "description": "",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -12,8 +12,8 @@
     "default": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
-    "start": "npm run build -- --watch"
+    "build": "set NODE_ENV=production&& tsup",
+    "start": "npm run build"
   },
   "keywords": [],
   "author": "Alexis Leite <alexisleite@live.com>",
@@ -34,8 +34,9 @@
     "eslint-plugin-react-hooks": "^4.6.0"
   },
   "dependencies": {
-    "@aluy/logger": "^1.0.2",
+    "@aluy/logger": "^1.0.5",
     "lodash.clonedeep": "^4.5.0",
+    "react": "^18.2.0",
     "tsup": "^6.5.0",
     "typescript": "^4.9.4"
   }
