@@ -1,8 +1,0 @@
-tsup.config.ts
-.gitignore
-specs
-.eslintrc.cjs
-.vscode
-tsconfig.json
-lib
-dist
