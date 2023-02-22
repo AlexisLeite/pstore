@@ -1,17 +1,20 @@
-import Logger from '@aluy/logger';
 import cloneDeep from 'lodash.clonedeep';
+import stores from './stores';
 import {
+  TDefProps,
   TId,
   TNewProps,
+  TSort,
   TStoredUpdate,
   TSuscriptor,
   TUpdateConfiguration,
 } from './types';
 
+/*
 const logger = new Logger(
   { enabled: true, level: 3 },
   { consoleConfig: 'pstoreLoggerConfig', getReport: 'getPStoreReport' },
-);
+); */
 
 /**
  * PStore is designed to handle the state of multiple components with the same structure, example:
@@ -23,15 +26,14 @@ const logger = new Logger(
  *
  * If you are looking for a store that enables for single state, you can use SStore instead.
  */
-export default class MStore<
-  PropsType extends { id: TId } & object = { id: TId } & object,
-> {
+export default class MStore<PropsType extends TDefProps = TDefProps> {
   #fields: Map<TId, PropsType>;
 
   #suscriptors = new Map<TId, TSuscriptor<PropsType>[]>();
 
+  #listSuscriptors: TSuscriptor<PropsType[]>[] = [];
+
   get fields() {
-    logger.log(1, 'Got fields');
     return cloneDeep(this.#fields);
   }
 
@@ -43,21 +45,15 @@ export default class MStore<
 
   #heldUpdates: TStoredUpdate<PropsType>[] = [];
 
-  #batchUpdate(
-    field: TId,
-    newProps: TNewProps<PropsType>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _configuration?: TUpdateConfiguration,
-  ) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!this.#batchedUpdates.has(field)) {
-      const props = this.fields.get(field) ?? ({ id: field } as PropsType);
-      this.#batchedUpdates.set(field, cloneDeep(props));
+  #batchUpdate(fieldId: TId, newProps: TNewProps<PropsType>) {
+    if (!this.#batchedUpdates.has(fieldId)) {
+      const props = this.fields.get(fieldId) ?? ({ id: fieldId } as PropsType);
+      this.#batchedUpdates.set(fieldId, cloneDeep(props));
     }
 
     this.#batchedUpdates.set(
-      field,
-      this.#mergeProps(field, newProps, this.#batchedUpdates.get(field)),
+      fieldId,
+      this.#mergeProps(fieldId, newProps, this.#batchedUpdates.get(fieldId)),
     );
   }
 
@@ -74,21 +70,27 @@ export default class MStore<
   }
 
   #mergeProps(
-    field: TId,
+    fieldId: TId,
     newProps: TNewProps<PropsType>,
-    prevProps: PropsType = this.#fields.get(field) ??
-      ({ id: field } as PropsType),
+    prevProps: PropsType = this.#fields.get(fieldId) ??
+      ({ id: fieldId } as PropsType),
   ) {
     return {
       ...prevProps,
       ...(newProps instanceof Function
-        ? newProps(this.#fields.get(field) as PropsType)
+        ? newProps(this.#fields.get(fieldId) as PropsType)
         : newProps),
     };
   }
 
-  #notify(field: TId, props: PropsType) {
-    this.#suscriptors.get(field)?.forEach((current) => current(props));
+  #notify(fieldId: TId, props: PropsType) {
+    this.#suscriptors.get(fieldId)?.forEach((current) => current(props));
+  }
+
+  #notifyChangesToList() {
+    this.#listSuscriptors.forEach((current) =>
+      current([...this.#fields].map(([, props]) => props)),
+    );
   }
 
   /** ************************************************************ */
@@ -97,9 +99,20 @@ export default class MStore<
    *
   /************************************************************** */
 
-  constructor(initialFields: PropsType[] = []) {
-    this.#fields = new Map();
-    initialFields.forEach((current) => this.#fields.set(current.id, current));
+  /**
+   *
+   * @param name **Required** it will be used to build a map of all running stores, in order to allow them to be obtained from any part of the application.
+   * @param initialFields **Optional** if passed, the
+   */
+  constructor(public name: string, initialFields: PropsType[] = []) {
+    this.#fields = new Map<TId, PropsType>(
+      initialFields.map((current) => [current.id, current]),
+    );
+    stores.set(name, this);
+  }
+
+  get length() {
+    return this.#fields.size;
   }
 
   /**
@@ -121,36 +134,68 @@ export default class MStore<
     });
   }
 
-  delete(field: TId) {
-    this.#fields.delete(field);
-    this.#suscriptors.delete(field);
+  /**
+   * Deletes the props of a field from the store
+   *
+   * @param fieldId
+   */
+  delete(fieldId: TId) {
+    this.#fields.delete(fieldId);
+    this.#suscriptors.delete(fieldId);
   }
 
-  getProps(field: TId) {
-    if (!this.#fields.get(field)) return undefined;
+  getProps(fieldId: TId) {
+    if (!this.#fields.get(fieldId)) return undefined;
 
-    return cloneDeep(this.#fields.get(field) as PropsType);
+    return cloneDeep(this.#fields.get(fieldId) as PropsType);
+  }
+
+  /**
+   * The store keeps the fields in the order they were inserted in the store, it is possible to store them with this method, which will affect the order in which the suscriptorsToList receive this list.
+   */
+  sortFields(sortMethod: TSort<PropsType>) {
+    this.#fields = new Map(
+      [...this.#fields].sort(([, propsA], [, propsB]) =>
+        sortMethod(propsA, propsB),
+      ),
+    );
   }
 
   /**
    * Allows the suscription to the props change of a specific field.
    *
-   * @param field The id of the field which you want to suscribe.
+   * @param fieldId The id of the field which you want to suscribe.
    * @param suscriptor A callback that will be called every time an update is applied in the field's state.
    *
-   * @returns Unsuscriptor, a callback that when called, will remove this suscription from the store.
+   * @returns **unsuscriber**, a function that when called, removes this suscription from the list.
    */
-  suscribe(field: TId, suscriptor: TSuscriptor<PropsType>) {
+  suscribe(fieldId: TId, suscriptor: TSuscriptor<PropsType>) {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!this.#suscriptors.get(field)) this.#suscriptors.set(field, []);
-    this.#suscriptors.get(field)?.push(suscriptor);
+    if (!this.#suscriptors.get(fieldId)) this.#suscriptors.set(fieldId, []);
+    this.#suscriptors.get(fieldId)?.push(suscriptor);
 
     return () => {
       this.#suscriptors.set(
-        field,
-        (this.#suscriptors.get(field) ?? []).filter(
+        fieldId,
+        (this.#suscriptors.get(fieldId) ?? []).filter(
           (current) => current !== suscriptor,
         ),
+      );
+    };
+  }
+
+  /**
+   * Allows to suscribe to the fields list of the store. This is, each time a field is added or removed, the listener will be called.
+   *
+   * @param suscriptor The callback to be called each time a change occurs in the list.
+   * @returns **unsuscriber**, a function that when called, removes this suscription from the list.
+   */
+  suscribeToFieldsList(suscriptor: TSuscriptor<PropsType[]>) {
+    this.#listSuscriptors.push(suscriptor);
+
+    return () => {
+      this.#listSuscriptors = this.#listSuscriptors.filter(
+        (current) => current !== suscriptor,
       );
     };
   }
@@ -160,28 +205,28 @@ export default class MStore<
    *
    * @param configuration.emitUpdates If passed false, the update will not be triggered immediatelly.
    *
-   * @param field The id of the field whoose props will be updated.
+   * @param fieldId The id of the field whoose props will be updated.
    * @param newProps The props to update on the field.
    * @param configuration An object containing some configurations relative to this update.
    */
   update(
-    field: TId,
+    fieldId: TId,
     newProps: Omit<TNewProps<PropsType>, 'id'>,
     configuration?: TUpdateConfiguration,
   ) {
     if (this.#isBatching) {
-      this.#batchUpdate(field, newProps, configuration);
+      this.#batchUpdate(fieldId, newProps);
     } else if (configuration?.emitUpdates === false) {
       this.#isHolding = true;
-      this.#heldUpdates.push({ configuration, field, newProps });
+      this.#heldUpdates.push({ configuration, field: fieldId, newProps });
     } else {
       if (this.#isHolding) {
         this.#isHolding = false;
         this.#emitHeldUpdates();
       }
 
-      this.#fields.set(field, this.#mergeProps(field, newProps));
-      this.#notify(field, this.#fields.get(field) as PropsType);
+      this.#fields.set(fieldId, this.#mergeProps(fieldId, newProps));
+      this.#notify(fieldId, this.#fields.get(fieldId) as PropsType);
     }
   }
 }

@@ -1,6 +1,6 @@
 export type TId = string | number;
 
-export type TDefProps = object & { id: string };
+export type TDefProps = object & { id: TId };
 
 export type TSuscriptor<T extends object = object> = (newProps: T) => unknown;
 
@@ -24,3 +24,5 @@ export interface TStoredUpdate<T extends object> {
   newProps: TNewProps<T>;
   configuration: TUpdateConfiguration;
 }
+
+export type TSort<T extends object> = (fieldA: T, fieldB: T) => number;

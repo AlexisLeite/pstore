@@ -1,114 +1,50 @@
 import React from 'react';
 import MStore from './mstore';
-import SStore from './sstore';
 import { TId } from './types';
 
-export type TComparator<SelectedType = unknown> = (
-  prevProps: SelectedType,
-  newProps: SelectedType,
-) => boolean;
+export type Selector<P, T = unknown> = (props: P) => T;
 
-export interface TUseSelectorProps<SelectedType extends object> {
-  comparator?: TComparator<SelectedType>;
-}
+export type Comparator<P> = (propsA: P, propsB: P) => boolean;
 
-export type TSelector<Selected = Partial<object>, PropsType = object> = (
-  newProps: PropsType,
-) => Selected;
+export type MapType<T> = T extends Map<TId, infer Type> ? Type : never;
 
-function defaultComparator<PropsType>(
-  prevProps: PropsType,
-  newProps: PropsType,
-) {
-  return prevProps === newProps;
+function useLatest<T>(props: T): React.MutableRefObject<T> {
+  const ref = React.useRef<T>(props);
+
+  ref.current = props;
+
+  return ref;
 }
 
 export default function useSelector<
-  PropsType extends object & { id: string } = object & { id: string },
-  SelectedType extends object = object,
+  StoreType extends MStore,
+  SelectorType extends Selector<
+    Parameters<Parameters<StoreType['suscribe']>[1]>[0]
+  >,
+  ComparatorType extends Comparator<ReturnType<SelectorType>>,
 >(
-  selector: TSelector<SelectedType, PropsType>,
-  store: SStore<PropsType>,
-  configuration: TUseSelectorProps<SelectedType>,
-): SelectedType;
-export default function useSelector<
-  PropsType extends object & { id: string } = object & { id: string },
-  SelectedType extends object = object,
->(
-  field: TId,
-  selector: TSelector<SelectedType, PropsType>,
-  store: MStore<PropsType>,
-  configuration: TUseSelectorProps<SelectedType>,
-): SelectedType;
-/**
- * Allows to trigger render when a store's field props are updated, applying selector and comparator function in order to determine when to update and when to not update.
- *
- * @param selector
- * @param store
- * @param configuration
- * @returns
- */
-export default function useSelector<
-  PropsType extends object & { id: string } = object & { id: string },
-  SelectedType extends object = object,
->(
-  par1: TId | TSelector<SelectedType, PropsType>,
-  par2: TSelector<SelectedType, PropsType> | SStore<PropsType>,
-  par3: MStore<PropsType> | TUseSelectorProps<SelectedType>,
-  par4?: TUseSelectorProps<SelectedType>,
-) {
-  const selector = (par2 instanceof SStore ? par1 : par2) as TSelector<
-    SelectedType,
-    PropsType
-  >;
-  const store = (par2 instanceof SStore ? par3 : par2) as
-    | SStore<PropsType>
-    | MStore<PropsType>;
-
-  const field = (par2 instanceof SStore ? '' : par1) as TId;
-
-  const configuration = (
-    par2 instanceof SStore ? par3 : par4
-  ) as TUseSelectorProps<SelectedType>;
-
-  const [state, setState] = React.useState<SelectedType>(
+  fieldId: TId,
+  store: StoreType,
+  selector: SelectorType,
+  comparator?: ComparatorType,
+): ReturnType<SelectorType> {
+  const [props, setProps] = React.useState<ReturnType<SelectorType>>(
     selector(
-      (store instanceof SStore
-        ? store.getProps()
-        : store.getProps(field)) as PropsType,
-    ) as SelectedType,
+      store.getProps(fieldId) as MapType<StoreType['fields']>,
+    ) as ReturnType<SelectorType>,
   );
-  const prevSelected = React.useRef<SelectedType>(state);
+  const previousProps = useLatest<ReturnType<SelectorType>>(props);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedSelector = React.useCallback(selector, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedComparator = React.useCallback(
-    configuration.comparator ?? defaultComparator,
-    [],
+  React.useEffect(
+    () =>
+      store.suscribe(fieldId, (newProps) => {
+        const selectedNewProps = selector(newProps) as ReturnType<SelectorType>;
+        if (!comparator?.(previousProps.current, selectedNewProps)) {
+          setProps(selectedNewProps);
+        }
+      }),
+    [comparator, fieldId, previousProps, selector, store],
   );
 
-  React.useEffect(() => {
-    let unsuscribe: () => unknown;
-
-    function compareAndUpdate(newProps: PropsType) {
-      const newSelectedProps = memoizedSelector(newProps);
-
-      if (memoizedComparator(prevSelected.current, newSelectedProps)) {
-        setState(newSelectedProps);
-      }
-    }
-
-    if (store instanceof SStore) {
-      unsuscribe = store.suscribe(compareAndUpdate);
-    } else {
-      unsuscribe = store.suscribe(field, compareAndUpdate);
-    }
-
-    return () => {
-      unsuscribe();
-    };
-  }, [memoizedComparator, store, field, memoizedSelector]);
-
-  return state;
+  return props;
 }

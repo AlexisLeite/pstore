@@ -12,13 +12,10 @@ const config: Options = {
   format: ['esm', 'cjs'],
   minify: env === 'production',
   outDir: env === 'production' ? 'lib' : 'dist',
-  skipNodeModulesBundle: true,
-  sourcemap: env !== 'production',
-  splitting: true,
+  sourcemap: true,
   target: 'es2020',
-  treeshake: true,
   tsconfig: './tsconfig.json',
-  watch: true
+  watch: true,
 };
 
 export default config;

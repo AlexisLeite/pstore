@@ -2,11 +2,12 @@ import MStore from './mstore';
 import { TNewProps, TSuscriptor } from './types';
 
 export default class SStore<State extends object = object> {
-  #store = new MStore<State & { id: string }>([
-    { id: 'state' } as State & { id: string },
-  ]);
+  #store: MStore<State & { id: string }>;
 
-  constructor(initialState?: State) {
+  constructor(name: string, initialState?: State) {
+    this.#store = new MStore<State & { id: string }>(name, [
+      { id: 'state' } as State & { id: string },
+    ]);
     if (initialState) this.#store.update('state', initialState);
   }
 
